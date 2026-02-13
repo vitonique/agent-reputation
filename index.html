@@ -558,6 +558,20 @@ a:hover{color:var(--text-bright)}
       commitment, and auditability. Compare this to a "vouch" that costs nothing.
     </p>
     <p>
+      In the wire format, <code>value/weight</code> is the scoring input, while <code>proof</code> links to verifiable evidence.
+    </p>
+    <div class="diagram" style="margin-top:16px;">
+<pre>
+{
+  "type": "repute_vouch",
+  "source": "did:local:zen",
+  "target": "did:local:neo",
+  "value": 0.9,
+  "proof": {"type": "on_chain_tx", "tx_hash": "0xabc123..."}
+}
+</pre>
+    </div>
+    <p>
       We combine <strong>signed economic signals</strong> with <strong>PageRank-inspired graph analysis</strong>: 
       trust propagates through the network, attenuates with distance, and decays over time. 
       Isolated Sybil clusters produce negligible scores because no path connects them to any real 
