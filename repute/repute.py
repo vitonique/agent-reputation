@@ -62,6 +62,16 @@ def compute_pagerank(seed_id=None, iterations=20, damping=0.85, time_decay=False
             val *= decay
         vouches.append((row['source'], row['target'], val))
     
+    # SV Signal: Boost nodes with high output artifacts
+    # For MVP, we look at artifacts table
+    sv_boost = {id: 1.0 for id in identities}
+    try:
+        for row in conn.execute("SELECT owner_id, weight FROM artifacts"):
+            if row['owner_id'] in sv_boost:
+                sv_boost[row['owner_id']] += row['weight']
+    except sqlite3.OperationalError:
+        pass # artifacts table might not exist yet
+    
     out_degrees = {id: 0.0 for id in identities}
     for src, tgt, val in vouches:
         if src in out_degrees:
@@ -77,7 +87,9 @@ def compute_pagerank(seed_id=None, iterations=20, damping=0.85, time_decay=False
             
         for src, tgt, val in vouches:
             if src in out_degrees and out_degrees[src] > 0:
-                new_scores[tgt] += damping * scores[src] * (val / out_degrees[src])
+                # SV weight integration: high SV nodes contribute more weight to the total pool
+                # This is a simple implementation where SV acts as a multiplier on the incoming score
+                new_scores[tgt] += damping * (scores[src] * sv_boost.get(src, 1.0)) * (val / out_degrees[src])
         
         sink_sum = sum(scores[id] for id in identities if out_degrees.get(id, 0) == 0)
         for id in identities:
@@ -87,7 +99,11 @@ def compute_pagerank(seed_id=None, iterations=20, damping=0.85, time_decay=False
             else:
                 new_scores[id] += damping * sink_sum / n
             
-        scores = new_scores
+        norm = sum(new_scores.values())
+        if norm > 0:
+            scores = {id: s/norm for id, s in new_scores.items()}
+        else:
+            scores = new_scores
         
     conn.close()
     return scores
